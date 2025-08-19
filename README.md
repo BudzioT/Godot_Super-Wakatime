@@ -105,7 +105,7 @@ You can either download it from the [Godot Asset Library](https://godotengine.or
 Don't know how to use this plugin? Here are the steps:
 1. Turn on the plugin in your plugins. In your `Project -> Project Settings -> Plugins -> `Click the `Enable` checkbox near this plugin
 2. If prompted for API key, provide it from Wakatime website
-3. if there is an issue with it, please manually create `~/.wakatime.cfg` file with these contents or use the setup script available at the [Hackatime configuration page](https://hackatime.hackclub.com/my/wakatime_setup) :
+3. if there is an issue with it, please manually create `~/.wakatime.cfg` file with these contents or use the setup script available at the [Hackatime configuration page](https://hackatime.hackclub.com/my/wakatime_setup):
     ```sh
     [settings]
     api_key=xxxx
