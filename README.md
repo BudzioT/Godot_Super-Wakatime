@@ -23,7 +23,7 @@
         <a href="https://store.godotengine.org/asset/bartoszb/godot-super-wakatime/">Get from Asset Store (Godot 4.7 and later)</a>
         .
         <a href="https://godotengine.org/asset-library/asset/3484">Get from Asset Lib (Godot 4.6 and earlier)</a>
-        ·
+        <br>
         <a href="https://youtu.be/rqAc-YdVXyM">View Demo</a>
         ·
         <a href="https://github.com/BudzioT/Godot_Super-Wakatime/issues/new">Report Bug / Request Feature</a>
