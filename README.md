@@ -20,7 +20,9 @@
         Officially approved to use in events created by Hack Club
         <br />
         <br />
-        <a href="https://godotengine.org/asset-library/asset/3484">Get from Asset Lib</a>
+        <a href="https://store.godotengine.org/asset/bartoszb/godot-super-wakatime/">Get from Asset Store (Godot 4.7 and later)</a>
+        .
+        <a href="https://godotengine.org/asset-library/asset/3484">Get from Asset Lib (Godot 4.6 and earlier)</a>
         ·
         <a href="https://youtu.be/rqAc-YdVXyM">View Demo</a>
         ·
