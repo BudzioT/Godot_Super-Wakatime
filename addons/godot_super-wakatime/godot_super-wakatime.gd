@@ -5,16 +5,17 @@ extends EditorPlugin
 #------------------------------- SETUP -------------------------------
 # Utilities
 var Utils = preload("res://addons/godot_super-wakatime/utils.gd").new()
-var DecompressorUtils = preload("res://addons/godot_super-wakatime/decompressor.gd").new()
 
 # Paths, Urls
 const PLUGIN_PATH: String = "res://addons/godot_super-wakatime"
 const ZIP_PATH: String = "%s/wakatime.zip" % PLUGIN_PATH
 
 const WAKATIME_URL_FMT: String = \
-	"https://github.com/wakatime/wakatime-cli/releases/download/v1.54.0/{wakatime_build}.zip"
-const DECOMPERSSOR_URL_FMT: String = \
-	"https://github.com/ouch-org/ouch/releases/download/0.3.1/{ouch_build}"
+	"https://github.com/wakatime/wakatime-cli/releases/latest/download/{wakatime_build}.zip"
+# The latest version is read from the releases/latest redirect, which isn't rate
+# limited like the GitHub API, so it's safe to check on every editor launch.
+const WAKATIME_LATEST_URL: String = "https://github.com/wakatime/wakatime-cli/releases/latest"
+const WAKATIME_TAG_URL_PREFIX: String = "https://github.com/wakatime/wakatime-cli/releases/tag/"
 
 # Names for menu
 const API_MENU_ITEM: String = "Wakatime API key"
@@ -23,7 +24,6 @@ const CONFIG_MENU_ITEM: String = "Wakatime Config File"
 # Directories to grab wakatime from
 var wakatime_dir = null
 var wakatime_cli = null
-var decompressor_cli = null
 
 var ApiKeyPrompt: PackedScene = preload("res://addons/godot_super-wakatime/api_key_prompt.tscn")
 var Counter: PackedScene = preload("res://addons/godot_super-wakatime/counter.tscn")
@@ -327,11 +327,78 @@ func get_waka_cli() -> String:
 	return wakatime_cli
 	
 func check_dependencies() -> void:
-	"""Make sure all dependencies exist"""
+	"""Make sure Wakatime CLI exists and is up to date"""
 	if !Utils.wakatime_cli_exists(get_waka_cli()):
 		download_wakatime()
-		if !DecompressorUtils.lib_exists(decompressor_cli, system_platform, PLUGIN_PATH):
-			download_decompressor()
+		return
+	
+	var installed: String = get_installed_waka_version()
+	if installed.is_empty():
+		Utils.plugin_print("Installed Wakatime CLI isn't working, reinstalling...")
+		remove_waka_cli()
+		download_wakatime()
+		return
+	
+	# Locally built CLI, never replace it
+	if installed == "<local-build>":
+		return
+	
+	check_latest_waka_version(installed)
+	
+func get_installed_waka_version() -> String:
+	"""Return the version reported by the installed Wakatime CLI, or empty on failure"""
+	var output: Array[Variant] = []
+	var exit_code: int = OS.execute(get_waka_cli(), ["--version"], output, true)
+	if exit_code != 0 or output.is_empty():
+		return ""
+	return str(output[0]).strip_edges()
+	
+func check_latest_waka_version(installed: String) -> void:
+	"""Ask GitHub for the latest Wakatime CLI release and update if it differs"""
+	var http = HTTPRequest.new()
+	# Don't follow the redirect, its target URL ends with the latest tag
+	http.max_redirects = 0
+	http.connect("request_completed",
+			Callable(self, "_latest_waka_version_received").bind(installed, http))
+	add_child(http)
+	
+	var status = http.request(WAKATIME_LATEST_URL, [], HTTPClient.METHOD_HEAD)
+	if status != OK:
+		Utils.plugin_print("Couldn't check for Wakatime CLI updates [Error: %s]" % status)
+		http.queue_free()
+	
+func _latest_waka_version_received(result, response_code, headers: PackedStringArray, body,
+		installed: String, http: HTTPRequest) -> void:
+	"""Compare the latest release tag with the installed version"""
+	http.queue_free()
+	# With max_redirects = 0 Godot reports the redirect as a limit hit, headers are still delivered
+	var got_redirect: bool = result == HTTPRequest.RESULT_SUCCESS \
+			or result == HTTPRequest.RESULT_REDIRECT_LIMIT_REACHED
+	if not got_redirect or response_code != HTTPClient.RESPONSE_FOUND:
+		Utils.plugin_print("Couldn't check for Wakatime CLI updates [HTTP %s]" % response_code)
+		return
+	
+	var latest: String = ""
+	for header in headers:
+		if header.to_lower().begins_with("location:"):
+			var location: String = header.substr(header.find(":") + 1).strip_edges()
+			if location.begins_with(WAKATIME_TAG_URL_PREFIX):
+				latest = location.trim_prefix(WAKATIME_TAG_URL_PREFIX)
+			break
+	if latest.is_empty():
+		Utils.plugin_print("Couldn't read latest Wakatime CLI version from GitHub")
+		return
+	
+	if latest == installed:
+		return
+	
+	Utils.plugin_print("Wakatime CLI %s found, updating to %s..." % [installed, latest])
+	remove_waka_cli()
+	download_wakatime()
+	
+func remove_waka_cli() -> void:
+	"""Delete the installed CLI"""
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(get_waka_cli()))
 	
 func download_wakatime() -> void:
 	"""Download wakatime cli"""
@@ -351,26 +418,6 @@ func download_wakatime() -> void:
 		Utils.plugin_print_err("Failed to start downloading Wakatime [Error: %s]" % status)
 		_disable_plugin()
 	
-func download_decompressor() -> void:
-	"""Download ouch decompressor"""
-	Utils.plugin_print("Downloading Ouch! decompression library...")
-	var url: String = DECOMPERSSOR_URL_FMT.format({"ouch_build": 
-			Utils.get_ouch_build(system_platform)})
-	if system_platform == "windows":
-		url += ".exe"
-		
-	# Try to download ouch
-	var http = HTTPRequest.new()
-	http.download_file = DecompressorUtils.decompressor_cli(decompressor_cli, system_platform, PLUGIN_PATH)
-	http.connect("request_completed", Callable(self, "_decompressor_download_finished"))
-	add_child(http)
-	
-	# Handle errors
-	var status = http.request(url)
-	if status != OK:
-		_disable_plugin()
-		Utils.plugin_print_err("Failed to start downloading Ouch! library [Error: %s]" % status)
-		
 func _wakatime_download_completed(result, status, headers, body) -> void:
 	"""Finish downloading wakatime, handle errors"""
 	if result != HTTPRequest.RESULT_SUCCESS:
@@ -378,65 +425,51 @@ func _wakatime_download_completed(result, status, headers, body) -> void:
 		_disable_plugin()
 		return
 	
-	Utils.plugin_print("Wakatime CLI has been installed succesfully! Located at %s" % ZIP_PATH)
-	extract_files(ZIP_PATH, get_waka_dir())
-	
-func _decompressor_download_finished(result, status, headers, body) -> void:
-	"""Handle errors and finishi decompressor download"""
-	# Error while downloading
-	if result != HTTPRequest.RESULT_SUCCESS:
-		Utils.plugin_print_err("Error while downloading Ouch! library")
-		_disable_plugin()
-		return
-	
-	# Error while saving
-	if !DecompressorUtils.lib_exists(decompressor_cli, system_platform, PLUGIN_PATH):
-		Utils.plugin_print_err("Failed to save Ouch! library")
-		_disable_plugin()
-		return
-
-	# Save decompressor path, give write permissions to it
-	var decompressor: String = \
-		ProjectSettings.globalize_path(DecompressorUtils.decompressor_cli(decompressor_cli, 
-			system_platform, PLUGIN_PATH))
-			
-	if system_platform == "linux" or system_platform == "darwin":
-		OS.execute("chmod", ["+x", decompressor], [], true)
-		
-	# Extract files, allowing usage of Ouch!
-	Utils.plugin_print("Ouch! has been installed succesfully! Located at %s" % \
-		DecompressorUtils.decompressor_cli(decompressor_cli, system_platform, PLUGIN_PATH))
+	Utils.plugin_print("Wakatime CLI has been downloaded succesfully! Located at %s" % ZIP_PATH)
 	extract_files(ZIP_PATH, get_waka_dir())
 	
 func extract_files(source: String, destination: String) -> void:
 	"""Extract downloaded Wakatime zip"""
-	# If decompression library and wakatime zip folder don't exist, return
-	if not DecompressorUtils.lib_exists(decompressor_cli, system_platform, 
-			PLUGIN_PATH) and not Utils.wakatime_zip_exists(ZIP_PATH):
-		return
-		
-	# Get paths as global
-	Utils.plugin_print("Extracting Wakatime...")
-	var decompressor: String
-	if system_platform == "windows":
-		decompressor = ProjectSettings.globalize_path( 
-			DecompressorUtils.decompressor_cli(decompressor_cli, system_platform, PLUGIN_PATH))
-	else:
-		decompressor = ProjectSettings.globalize_path("res://" +
-			DecompressorUtils.decompressor_cli(decompressor_cli, system_platform, PLUGIN_PATH))
-		
-	var src: String = ProjectSettings.globalize_path(source)
-	var dest: String = ProjectSettings.globalize_path(destination)
-	
-	# Execute Ouch! decompression command, catch errors
-	var errors: Array[Variant] = []
-	var args: Array[String] = ["--yes", "decompress", src, "--dir", dest]
-	
-	var error: int = OS.execute(decompressor, args, errors, true)
-	if error:
-		Utils.plugin_print(errors)
+	if not Utils.wakatime_zip_exists(source):
+		Utils.plugin_print_err("Wakatime zip not found at %s" % source)
 		_disable_plugin()
 		return
+		
+	Utils.plugin_print("Extracting Wakatime...")
+	var dest: String = ProjectSettings.globalize_path(destination)
+	
+	var err: int = DirAccess.make_dir_recursive_absolute(dest)
+	if err != OK:
+		Utils.plugin_print_err("Failed to create directory %s [Error: %s]" % [dest, err])
+		_disable_plugin()
+		return
+	
+	var reader := ZIPReader.new()
+	err = reader.open(source)
+	if err != OK:
+		Utils.plugin_print_err("Failed to open Wakatime zip [Error: %s]" % err)
+		_disable_plugin()
+		return
+	
+	for file_name in reader.get_files():
+		if file_name.ends_with("/"):
+			continue
+		var out_path: String = dest.path_join(file_name)
+		DirAccess.make_dir_recursive_absolute(out_path.get_base_dir())
+	
+		var out: FileAccess = FileAccess.open(out_path, FileAccess.WRITE)
+		if out == null:
+			Utils.plugin_print_err("Failed to write %s [Error: %s]" % [out_path, FileAccess.get_open_error()])
+			reader.close()
+			_disable_plugin()
+			return
+		out.store_buffer(reader.read_file(file_name))
+		out.close()
+	reader.close()
+	
+	# ZIPReader doesn't preserve the executable bit
+	if system_platform != "windows":
+		OS.execute("chmod", ["755", ProjectSettings.globalize_path(get_waka_cli())], [], true)
 		
 	# Results
 	if Utils.wakatime_cli_exists(get_waka_cli()):
@@ -451,8 +484,6 @@ func extract_files(source: String, destination: String) -> void:
 func clean_files():
 	"""Delete files that aren't needed anymore"""
 	if Utils.wakatime_zip_exists(ZIP_PATH):
-		delete_file(ZIP_PATH)
-	if DecompressorUtils.lib_exists(decompressor_cli, system_platform, PLUGIN_PATH):
 		delete_file(ZIP_PATH)
 		
 func delete_file(path: String) -> void:
@@ -535,7 +566,7 @@ func _on_save_key(prompt: PopupPanel) -> void:
 	var api_key  = edit_field.text.strip_edges()
 	
 	# Try to set api key for wakatime and handle errors
-	var err: int = OS.execute(get_waka_cli(), ["--config-write", "api-key=%s" % api_key])
+	var err: int = OS.execute(get_waka_cli(), ["--config-write", "api_key=%s" % api_key])
 	if err == -1:
 		Utils.plugin_print("Failed to save API key")
 	prompt.visible = false

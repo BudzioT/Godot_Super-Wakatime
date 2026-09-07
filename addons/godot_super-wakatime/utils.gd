@@ -25,7 +25,7 @@ func set_platform():
 	if OS.has_feature("x86_64"):
 		architecture = "amd64"
 	elif OS.has_feature("x86_32"):
-		architecture = "amd32"
+		architecture = "386"
 	elif OS.has_feature("arm64"):
 		architecture = "arm64"
 	elif OS.has_feature("arm32"):
@@ -37,16 +37,6 @@ func get_waka_build(platform: String, architecture: String) -> String:
 	"""Return wakatime build for current OS"""
 	return "wakatime-cli-%s-%s" % [platform, architecture]
 
-func get_ouch_build(system_platform: String) -> String:
-	"""Get build for ouch (compression and decompression tool)"""
-	var platform: String = "linux-musl"
-	if system_platform == "windows":
-		platform = "pc-windows-msvc"
-	elif system_platform == "darwin":
-		platform = "apple-darwin"
-
-	return "ouch-%s-%s" % ["x86_64", platform]
-	
 func home_directory(platform: String, plugin_path: String) -> String:
 	"""Get home directory from """
 	var home = null

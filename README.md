@@ -76,11 +76,9 @@ You can also see your time spent in the editor itself:
 
 
 ### Built Using
-I used the Ouch! CLI tool for decompression of files <br />
 This project was built using one simple, yet powerful language.<br />
 It required a lot of workarounds, but it was a pleasure to use it
 * [![GDScript][Godot]][Godot-url]
-* [![Ouch!][Ouch-shield]][Ouch-url]
 
 <p align="right">(<a href="#readme-top">top</a>)</p>
 
@@ -118,7 +116,7 @@ If you are coming from Hack Club use this:
     api_url = https://hackatime.hackclub.com/api/hackatime/v1
     api_key=xxxx
     ```
-4. Wakatime CLI should have been installed automatically along with Ouch! Decompression library
+4. Wakatime CLI should have been installed automatically (no extra tools needed)
 5. Work on your project! You should see your results on either Wakatime or Hackatime!
 6. You can also see your time at the bottom panel
 
@@ -147,6 +145,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 [product-logo]: https://cloud-j4wibbzz7-hack-club-bot.vercel.app/2godotwaka2.png
 [Godot]: https://img.shields.io/badge/Godot%20Engine-478CBF?logo=godotengine&logoColor=fff&style=flat
 [Godot-url]: https://godotengine.org/
-[Ouch-shield]: https://img.shields.io/badge/Ouch!-tool-blue?label=Ouch!
-[Ouch-url]: https://github.com/ouch-org/ouch
 [time-screenshot]: https://cloud-l88kldf50-hack-club-bot.vercel.app/0image.png
