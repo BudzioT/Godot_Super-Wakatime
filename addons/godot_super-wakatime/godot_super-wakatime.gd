@@ -12,8 +12,6 @@ const ZIP_PATH: String = "%s/wakatime.zip" % PLUGIN_PATH
 
 const WAKATIME_URL_FMT: String = \
 	"https://github.com/wakatime/wakatime-cli/releases/latest/download/{wakatime_build}.zip"
-# The latest version is read from the releases/latest redirect, which isn't rate
-# limited like the GitHub API, so it's safe to check on every editor launch.
 const WAKATIME_LATEST_URL: String = "https://github.com/wakatime/wakatime-cli/releases/latest"
 const WAKATIME_TAG_URL_PREFIX: String = "https://github.com/wakatime/wakatime-cli/releases/tag/"
 
