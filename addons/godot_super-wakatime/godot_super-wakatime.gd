@@ -67,6 +67,8 @@ func get_coding_data(file: Script = null) ->  DataSnapshot:
 		return null
 
 	snapshot.file_path = ProjectSettings.globalize_path(file.resource_path)
+	if file.is_built_in():
+		snapshot.file_path = snapshot.file_path.split("::")[0]
 
 	var code_edit: CodeEdit = get_editor_interface().get_script_editor().get_current_editor().get_base_editor()
 	if code_edit is not CodeEdit:
